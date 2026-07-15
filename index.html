@@ -2,45 +2,570 @@
 <html lang="ko">
 <head>
 <meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
 <title>나의 일정</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=IBM+Plex+Mono:wght@500;600&family=Noto+Sans+KR:wght@400;500;700&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --page-bg: #E7EAF0;
+    --paper: #FBFBF8;
+    --ink: #1E293B;
+    --muted-ink: #A0A8B4;
+    --line: #DEE3EA;
+    --sunday: #C6395A;
+    --saturday: #2F6FA6;
+    --pen: #C0392B;
+    --chip-bg: #FFE29B;
+    --chip-text: #5B4212;
+    --ring: #B7BEC9;
+    --shadow: rgba(30, 41, 59, 0.14);
+  }
+
+  * { box-sizing: border-box; }
+
+  body {
+    margin: 0;
+    padding: 32px 16px 64px;
+    background: var(--page-bg);
+    background-image:
+      linear-gradient(var(--line) 1px, transparent 1px),
+      linear-gradient(90deg, var(--line) 1px, transparent 1px);
+    background-size: 28px 28px;
+    color: var(--ink);
+    font-family: 'Noto Sans KR', sans-serif;
+    min-height: 100vh;
+  }
+
+  .sheet {
+    max-width: 640px;
+    margin: 0 auto;
+    background: var(--paper);
+    border-radius: 6px;
+    box-shadow: 0 18px 40px var(--shadow);
+    position: relative;
+    overflow: hidden;
+  }
+
+  .rings {
+    display: flex;
+    justify-content: space-evenly;
+    padding: 14px 24px 0;
+  }
+  .rings span {
+    width: 14px;
+    height: 14px;
+    border-radius: 50%;
+    background: var(--page-bg);
+    border: 2px solid var(--ring);
+  }
+
+  .head {
+    padding: 18px 28px 14px;
+    text-align: center;
+  }
+  .eyebrow {
+    font-family: 'Space Grotesk', 'Noto Sans KR', sans-serif;
+    font-size: 12px;
+    font-weight: 600;
+    letter-spacing: 0.14em;
+    color: var(--muted-ink);
+    text-transform: uppercase;
+  }
+  .month-row {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 18px;
+    margin-top: 6px;
+  }
+  .month-title {
+    font-family: 'Space Grotesk', 'Noto Sans KR', sans-serif;
+    font-size: 26px;
+    font-weight: 700;
+    min-width: 190px;
+    text-align: center;
+  }
+  .nav-btn {
+    width: 34px;
+    height: 34px;
+    border-radius: 50%;
+    border: 1.5px solid var(--line);
+    background: var(--paper);
+    color: var(--ink);
+    font-size: 16px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+  .nav-btn:hover { border-color: var(--ink); }
+
+  .tear {
+    height: 12px;
+    background:
+      linear-gradient(135deg, var(--paper) 50%, transparent 50%) 0 0/12px 12px repeat-x,
+      linear-gradient(-135deg, var(--paper) 50%, transparent 50%) 0 0/12px 12px repeat-x;
+    background-color: var(--page-bg);
+  }
+
+  .weekday-row {
+    display: grid;
+    grid-template-columns: repeat(7, 1fr);
+    padding: 14px 10px 4px;
+  }
+  .weekday-row div {
+    text-align: center;
+    font-size: 12px;
+    font-weight: 700;
+    color: var(--ink);
+    padding-bottom: 6px;
+  }
+  .weekday-row div.sun { color: var(--sunday); }
+  .weekday-row div.sat { color: var(--saturday); }
+
+  .grid {
+    display: grid;
+    grid-template-columns: repeat(7, 1fr);
+    padding: 0 10px 16px;
+    gap: 4px;
+  }
+
+  .cell {
+    min-height: 84px;
+    border: 1px solid var(--line);
+    border-radius: 4px;
+    padding: 6px 6px 4px;
+    cursor: pointer;
+    position: relative;
+    background: var(--paper);
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    transition: background 0.12s ease;
+  }
+  .cell:hover { background: #F3F1E9; }
+  .cell.muted { opacity: 0.35; }
+  .cell.muted:hover { background: var(--paper); }
+
+  .date-num {
+    font-family: 'IBM Plex Mono', 'Noto Sans KR', monospace;
+    font-size: 14px;
+    font-weight: 600;
+    position: relative;
+    width: fit-content;
+  }
+  .cell.sun .date-num { color: var(--sunday); }
+  .cell.sat .date-num { color: var(--saturday); }
+
+  .today-ring {
+    position: absolute;
+    top: -7px;
+    left: -9px;
+    width: 30px;
+    height: 26px;
+    pointer-events: none;
+  }
+
+  .chips { display: flex; flex-direction: column; gap: 3px; }
+  .chip {
+    background: var(--chip-bg);
+    color: var(--chip-text);
+    font-size: 11px;
+    padding: 2px 6px;
+    border-radius: 3px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    transform: rotate(-0.6deg);
+  }
+  .chip.more {
+    background: none;
+    color: var(--muted-ink);
+    padding: 0 2px;
+    transform: none;
+  }
+
+  .status {
+    text-align: center;
+    padding: 40px 20px;
+    color: var(--muted-ink);
+    font-size: 13px;
+  }
+
+  .fab {
+    position: fixed;
+    right: 24px;
+    bottom: 28px;
+    width: 52px;
+    height: 52px;
+    border-radius: 50%;
+    background: var(--pen);
+    color: #fff;
+    border: none;
+    font-size: 26px;
+    line-height: 1;
+    cursor: pointer;
+    box-shadow: 0 10px 22px rgba(192, 57, 43, 0.4);
+  }
+  .fab:hover { filter: brightness(1.06); }
+
+  .overlay {
+    position: fixed;
+    inset: 0;
+    background: rgba(30, 41, 59, 0.45);
+    display: none;
+    align-items: center;
+    justify-content: center;
+    padding: 16px;
+    z-index: 10;
+  }
+  .overlay.open { display: flex; }
+
+  .modal {
+    background: var(--paper);
+    border-radius: 8px;
+    width: 100%;
+    max-width: 360px;
+    padding: 20px;
+    box-shadow: 0 20px 50px rgba(0,0,0,0.3);
+  }
+  .modal-top {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 10px;
+  }
+  .modal-date {
+    font-family: 'Space Grotesk', 'Noto Sans KR', sans-serif;
+    font-weight: 700;
+    font-size: 17px;
+  }
+  .close-btn {
+    border: none;
+    background: none;
+    font-size: 18px;
+    cursor: pointer;
+    color: var(--muted-ink);
+  }
+
+  .task-list { list-style: none; margin: 0 0 12px; padding: 0; display: flex; flex-direction: column; gap: 6px; }
+  .task-list li {
+    background: var(--chip-bg);
+    color: var(--chip-text);
+    font-size: 13px;
+    padding: 6px 10px;
+    border-radius: 4px;
+  }
+  .empty-hint { font-size: 13px; color: var(--muted-ink); margin: 0 0 12px; }
+
+  .modal form { display: flex; flex-direction: column; gap: 8px; }
+  .modal input[type="date"],
+  .modal input[type="text"] {
+    border: 1px solid var(--line);
+    border-radius: 5px;
+    padding: 9px 10px;
+    font-size: 14px;
+    font-family: 'Noto Sans KR', sans-serif;
+    color: var(--ink);
+  }
+  .modal button[type="submit"] {
+    border: none;
+    background: var(--ink);
+    color: #fff;
+    border-radius: 5px;
+    padding: 10px;
+    font-size: 14px;
+    font-weight: 500;
+    cursor: pointer;
+    margin-top: 2px;
+  }
+  .modal button[type="submit"]:hover { background: #334155; }
+
+  @media (max-width: 420px) {
+    .rings { display: none; }
+    .cell { min-height: 66px; padding: 4px; }
+    .month-title { font-size: 21px; min-width: 150px; }
+    .chip { font-size: 10px; }
+  }
+</style>
 </head>
 <body>
-<h1>나의 일정</h1>
-<form id="form">
-<input type="date" id="date" required />
-<input type="text" id="content" placeholder="할 일" required />
-<button type="submit">추가</button>
-</form>
-<ul id="list"></ul>
+
+<div class="sheet">
+  <div class="rings">
+    <span></span><span></span><span></span><span></span><span></span>
+    <span></span><span></span><span></span><span></span><span></span>
+    <span></span><span></span>
+  </div>
+
+  <div class="head">
+    <div class="eyebrow">나의 일정</div>
+    <div class="month-row">
+      <button class="nav-btn" id="prevBtn" aria-label="이전 달">‹</button>
+      <div class="month-title" id="monthTitle">2026년 7월</div>
+      <button class="nav-btn" id="nextBtn" aria-label="다음 달">›</button>
+    </div>
+  </div>
+
+  <div class="tear"></div>
+
+  <div class="weekday-row" id="weekdayRow"></div>
+  <div class="grid" id="grid">
+    <div class="status" style="grid-column: 1 / -1;">불러오는 중...</div>
+  </div>
+</div>
+
+<button class="fab" id="fabBtn" aria-label="일정 추가">+</button>
+
+<div class="overlay" id="overlay">
+  <div class="modal">
+    <div class="modal-top">
+      <div class="modal-date" id="modalDate">7월 15일</div>
+      <button class="close-btn" id="closeBtn" aria-label="닫기">×</button>
+    </div>
+    <ul class="task-list" id="taskList"></ul>
+    <p class="empty-hint" id="emptyHint" style="display:none;">이 날은 아직 일정이 없어요.</p>
+    <form id="addForm">
+      <input type="date" id="dateInput" required />
+      <input type="text" id="contentInput" placeholder="할 일" required />
+      <button type="submit">추가</button>
+    </form>
+  </div>
+</div>
+
 <script>
 // 3.4에서 복사한 웹 앱 주소를 붙여 넣습니다
 const URL = "https://script.google.com/macros/s/AKfycbwk79waxoybi5VBjitscUQdwhCVi-sapu3_xagmFYvJ3gIGsuYIqiq8RGcRL6-Gr73njg/exec";
-// 시트에서 일정 목록을 불러와 화면에 그립니다
-async function load() {
-const res = await fetch(URL);
-const data = await res.json();
-const list = document.getElementById("list");
-list.innerHTML = "";
-data.forEach((item) => {
-const li = document.createElement("li");
-li.textContent = item.date + " · " + item.content;
-list.appendChild(li);
-});
+
+const WEEKDAYS = ["일", "월", "화", "수", "목", "금", "토"];
+const MONTH_NAMES_KO = m => (m + 1) + "월";
+
+const today = new Date();
+const state = {
+  year: today.getFullYear(),
+  month: today.getMonth(),
+  tasks: [],
+  loaded: false
+};
+
+function pad(n) { return String(n).padStart(2, "0"); }
+
+function dateKey(y, m, d) {
+  return y + "-" + pad(m + 1) + "-" + pad(d);
 }
-// 추가 버튼을 누르면 시트에 한 줄 보내고, 다시 목록을 새로 그립니다
-document.getElementById("form").addEventListener("submit", async (e) => {
-e.preventDefault();
-const date = document.getElementById("date").value;
-const content = document.getElementById("content").value;
-await fetch(URL, {
-method: "POST",
-body: JSON.stringify({ date, content }),
+
+// 서버가 어떤 형식으로 날짜를 돌려주든 yyyy-mm-dd 로 맞춰줍니다
+function normalizeDateKey(raw) {
+  if (!raw) return "";
+  if (typeof raw === "string" && /^\d{4}-\d{2}-\d{2}/.test(raw)) {
+    return raw.slice(0, 10);
+  }
+  const d = new Date(raw);
+  if (isNaN(d.getTime())) return String(raw).slice(0, 10);
+  return dateKey(d.getFullYear(), d.getMonth(), d.getDate());
+}
+
+function buildWeekdayRow() {
+  const row = document.getElementById("weekdayRow");
+  row.innerHTML = "";
+  WEEKDAYS.forEach((label, i) => {
+    const div = document.createElement("div");
+    div.textContent = label;
+    if (i === 0) div.className = "sun";
+    if (i === 6) div.className = "sat";
+    row.appendChild(div);
+  });
+}
+
+// 일정 목록을 시트에서 불러옵니다
+async function fetchTasks() {
+  const grid = document.getElementById("grid");
+  grid.innerHTML = '<div class="status" style="grid-column: 1 / -1;">불러오는 중...</div>';
+  try {
+    const res = await fetch(URL);
+    const data = await res.json();
+    state.tasks = Array.isArray(data) ? data : [];
+    state.loaded = true;
+  } catch (err) {
+    state.tasks = [];
+    state.loaded = false;
+  }
+  renderCalendar();
+}
+
+function tasksByDate() {
+  const map = new Map();
+  state.tasks.forEach(item => {
+    const key = normalizeDateKey(item.date);
+    if (!map.has(key)) map.set(key, []);
+    map.get(key).push(item.content);
+  });
+  return map;
+}
+
+function renderCalendar() {
+  const grid = document.getElementById("grid");
+  document.getElementById("monthTitle").textContent = state.year + "년 " + MONTH_NAMES_KO(state.month);
+
+  if (!state.loaded) {
+    grid.innerHTML = '<div class="status" style="grid-column: 1 / -1;">일정을 불러오지 못했어요. 새로고침해 주세요.</div>';
+    return;
+  }
+
+  const byDate = tasksByDate();
+  const firstOfMonth = new Date(state.year, state.month, 1);
+  const startWeekday = firstOfMonth.getDay();
+  const daysInMonth = new Date(state.year, state.month + 1, 0).getDate();
+  const daysInPrevMonth = new Date(state.year, state.month, 0).getDate();
+
+  const cells = [];
+  for (let i = 0; i < startWeekday; i++) {
+    const d = daysInPrevMonth - startWeekday + 1 + i;
+    cells.push({ y: state.month === 0 ? state.year - 1 : state.year, m: (state.month + 11) % 12, d, muted: true });
+  }
+  for (let d = 1; d <= daysInMonth; d++) {
+    cells.push({ y: state.year, m: state.month, d, muted: false });
+  }
+  while (cells.length % 7 !== 0 || cells.length < 42) {
+    const last = cells[cells.length - 1];
+    const nextDate = new Date(last.y, last.m, last.d + 1);
+    cells.push({ y: nextDate.getFullYear(), m: nextDate.getMonth(), d: nextDate.getDate(), muted: true });
+    if (cells.length >= 42) break;
+  }
+
+  grid.innerHTML = "";
+  cells.forEach(cell => {
+    const key = dateKey(cell.y, cell.m, cell.d);
+    const weekday = new Date(cell.y, cell.m, cell.d).getDay();
+    const isToday = key === dateKey(today.getFullYear(), today.getMonth(), today.getDate());
+    const dayTasks = byDate.get(key) || [];
+
+    const div = document.createElement("div");
+    div.className = "cell" + (cell.muted ? " muted" : "") + (weekday === 0 ? " sun" : weekday === 6 ? " sat" : "");
+    div.dataset.date = key;
+
+    const numWrap = document.createElement("div");
+    numWrap.className = "date-num";
+    numWrap.textContent = cell.d;
+    if (isToday && !cell.muted) {
+      numWrap.innerHTML += `<svg class="today-ring" viewBox="0 0 30 26"><path d="M15 2C7 1 2 6 2 13c0 8 7 12 14 11 6-1 12-5 12-11 0-6-6-11-13-10" fill="none" stroke="${getComputedStyle(document.documentElement).getPropertyValue('--pen')}" stroke-width="2" stroke-linecap="round"/></svg>`;
+    }
+    div.appendChild(numWrap);
+
+    const chipsWrap = document.createElement("div");
+    chipsWrap.className = "chips";
+    const shown = dayTasks.slice(0, 2);
+    shown.forEach(content => {
+      const chip = document.createElement("div");
+      chip.className = "chip";
+      chip.textContent = content;
+      chipsWrap.appendChild(chip);
+    });
+    if (dayTasks.length > shown.length) {
+      const more = document.createElement("div");
+      more.className = "chip more";
+      more.textContent = "+" + (dayTasks.length - shown.length) + "개 더";
+      chipsWrap.appendChild(more);
+    }
+    div.appendChild(chipsWrap);
+
+    div.addEventListener("click", () => openModal(cell.y, cell.m, cell.d));
+    grid.appendChild(div);
+  });
+}
+
+function formatModalDate(y, m, d) {
+  return (m + 1) + "월 " + d + "일";
+}
+
+function refreshModalTaskList(key) {
+  const list = document.getElementById("taskList");
+  const emptyHint = document.getElementById("emptyHint");
+  const byDate = tasksByDate();
+  const items = byDate.get(key) || [];
+  list.innerHTML = "";
+  if (items.length === 0) {
+    emptyHint.style.display = "block";
+  } else {
+    emptyHint.style.display = "none";
+    items.forEach(content => {
+      const li = document.createElement("li");
+      li.textContent = content;
+      list.appendChild(li);
+    });
+  }
+}
+
+function openModal(y, m, d) {
+  const key = dateKey(y, m, d);
+  document.getElementById("modalDate").textContent = formatModalDate(y, m, d);
+  document.getElementById("dateInput").value = key;
+  document.getElementById("contentInput").value = "";
+  refreshModalTaskList(key);
+  document.getElementById("overlay").classList.add("open");
+  document.getElementById("contentInput").focus();
+}
+
+function closeModal() {
+  document.getElementById("overlay").classList.remove("open");
+}
+
+document.getElementById("closeBtn").addEventListener("click", closeModal);
+document.getElementById("overlay").addEventListener("click", e => {
+  if (e.target.id === "overlay") closeModal();
 });
-e.target.reset();
-load();
+document.addEventListener("keydown", e => {
+  if (e.key === "Escape") closeModal();
 });
-// 페이지를 열면 곧바로 목록을 불러옵니다
-load();
+
+document.getElementById("dateInput").addEventListener("change", e => {
+  refreshModalTaskList(e.target.value);
+});
+
+document.getElementById("fabBtn").addEventListener("click", () => {
+  openModal(today.getFullYear(), today.getMonth(), today.getDate());
+});
+
+document.getElementById("prevBtn").addEventListener("click", () => {
+  state.month -= 1;
+  if (state.month < 0) { state.month = 11; state.year -= 1; }
+  renderCalendar();
+});
+document.getElementById("nextBtn").addEventListener("click", () => {
+  state.month += 1;
+  if (state.month > 11) { state.month = 0; state.year += 1; }
+  renderCalendar();
+});
+
+// 추가 버튼을 누르면 시트에 한 줄 보내고, 다시 목록을 새로 불러옵니다
+document.getElementById("addForm").addEventListener("submit", async e => {
+  e.preventDefault();
+  const date = document.getElementById("dateInput").value;
+  const content = document.getElementById("contentInput").value;
+  if (!date || !content) return;
+
+  const submitBtn = e.target.querySelector("button[type=submit]");
+  submitBtn.disabled = true;
+  submitBtn.textContent = "추가 중...";
+  try {
+    await fetch(URL, {
+      method: "POST",
+      body: JSON.stringify({ date, content })
+    });
+    await fetchTasks();
+    refreshModalTaskList(date);
+    document.getElementById("contentInput").value = "";
+    document.getElementById("contentInput").focus();
+  } finally {
+    submitBtn.disabled = false;
+    submitBtn.textContent = "추가";
+  }
+});
+
+buildWeekdayRow();
+fetchTasks();
 </script>
 </body>
 </html>
