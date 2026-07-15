@@ -1,0 +1,332 @@
+<!DOCTYPE html>
+<!-- 구글 시트를 저장소로 쓰는 월간 달력 일정 앱 -->
+<html lang="ko">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>나의 일정</title>
+<style>
+* { box-sizing: border-box; }
+
+body {
+  font-family: -apple-system, "Apple SD Gothic Neo", "Malgun Gothic", sans-serif;
+  max-width: 720px;
+  margin: 0 auto;
+  padding: 24px 16px;
+  background: #f7f7f8;
+  color: #222;
+}
+
+h1 { font-size: 22px; }
+
+/* 입력 폼 */
+#form { display: flex; gap: 8px; margin-bottom: 20px; }
+#form input, #form button {
+  padding: 8px 10px;
+  border: 1px solid #d5d5da;
+  border-radius: 6px;
+  font-size: 14px;
+}
+#content { flex: 1; min-width: 0; }
+#form button {
+  background: #3b6cf6;
+  border-color: #3b6cf6;
+  color: #fff;
+  cursor: pointer;
+}
+
+/* 달력 전체 틀 */
+.calendar {
+  background: #fff;
+  border: 1px solid #e3e3e8;
+  border-radius: 10px;
+  overflow: hidden;
+}
+
+/* 달력 위쪽의 ‹ 2026년 7월 › 부분 */
+.calendar-header {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 16px;
+  padding: 14px;
+}
+.calendar-header strong { font-size: 17px; }
+.calendar-header button {
+  border: 0;
+  background: none;
+  padding: 0 8px;
+  font-size: 20px;
+  color: #666;
+  cursor: pointer;
+}
+
+/* 요일 줄과 날짜 칸을 7칸짜리 격자로 만듭니다 */
+.weekdays, .days {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+}
+
+.weekdays div {
+  padding: 8px 0;
+  border-bottom: 1px solid #eee;
+  font-size: 12px;
+  color: #888;
+  text-align: center;
+}
+
+/* 날짜 한 칸 */
+.day {
+  min-height: 84px;
+  padding: 6px;
+  border-right: 1px solid #f0f0f3;
+  border-bottom: 1px solid #f0f0f3;
+  cursor: pointer;
+}
+.day:nth-child(7n) { border-right: 0; }
+.day.empty { background: #fafafb; cursor: default; }
+.day:not(.empty):hover { background: #f4f7ff; }
+.day.selected { background: #eef2ff; box-shadow: inset 0 0 0 2px #3b6cf6; }
+
+/* 날짜 숫자 */
+.num {
+  display: inline-block;
+  width: 22px;
+  height: 22px;
+  line-height: 22px;
+  border-radius: 50%;
+  font-size: 13px;
+  text-align: center;
+}
+
+/* 일요일은 빨강, 토요일은 파랑 */
+.weekdays div:first-child { color: #e0483d; }
+.weekdays div:last-child { color: #3b6cf6; }
+.days > :nth-child(7n + 1) .num { color: #e0483d; }
+.days > :nth-child(7n) .num { color: #3b6cf6; }
+
+/* 오늘 날짜는 파란 동그라미로 강조합니다 (위 요일 색보다 뒤에 와야 이깁니다) */
+.day.today .num { background: #3b6cf6; color: #fff; }
+
+/* 칸 안에 보이는 일정 */
+.tag {
+  display: block;
+  margin-top: 3px;
+  padding: 1px 4px;
+  border-radius: 3px;
+  background: #e8edfd;
+  color: #2b49a8;
+  font-size: 11px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.more { display: block; margin-top: 2px; font-size: 10px; color: #999; }
+
+/* 선택한 날짜의 상세 목록 */
+.detail {
+  margin-top: 20px;
+  padding: 16px;
+  background: #fff;
+  border: 1px solid #e3e3e8;
+  border-radius: 10px;
+}
+.detail h2 { margin: 0 0 10px; font-size: 15px; }
+#list { list-style: none; margin: 0; padding: 0; }
+#list li {
+  margin-bottom: 6px;
+  padding: 8px 10px;
+  border-radius: 6px;
+  background: #f7f7f8;
+  font-size: 14px;
+}
+#list li.empty-msg { color: #aaa; background: none; padding-left: 0; }
+#error { margin: 10px 0 0; font-size: 13px; color: #e0483d; }
+</style>
+</head>
+<body>
+<h1>나의 일정</h1>
+
+<form id="form">
+<input type="date" id="date" required />
+<input type="text" id="content" placeholder="할 일" required />
+<button type="submit">추가</button>
+</form>
+
+<div class="calendar">
+<div class="calendar-header">
+<button type="button" id="prev">‹</button>
+<strong id="title"></strong>
+<button type="button" id="next">›</button>
+</div>
+<div class="weekdays">
+<div>일</div><div>월</div><div>화</div><div>수</div><div>목</div><div>금</div><div>토</div>
+</div>
+<div class="days" id="days"></div>
+</div>
+
+<div class="detail">
+<h2 id="detail-title"></h2>
+<ul id="list"></ul>
+</div>
+
+<p id="error"></p>
+
+<script>
+// 3.4에서 복사한 웹 앱 주소를 붙여 넣습니다
+const URL = "https://script.google.com/macros/s/AKfycbwk79waxoybi5VBjitscUQdwhCVi-sapu3_xagmFYvJ3gIGsuYIqiq8RGcRL6-Gr73njg/exec";
+
+// 날짜를 시트와 같은 "2026-07-15" 형태의 문자열로 만듭니다
+function toKey(year, month, date) {
+  const m = String(month + 1).padStart(2, "0");
+  const d = String(date).padStart(2, "0");
+  return year + "-" + m + "-" + d;
+}
+
+// 화면에 필요한 상태는 이 세 가지뿐입니다
+const today = new Date();
+let year = today.getFullYear();            // 지금 보고 있는 연도
+let month = today.getMonth();              // 지금 보고 있는 월 (0부터 시작)
+let selected = toKey(year, month, today.getDate()); // 선택한 날짜
+let schedules = [];                        // 시트에서 받아온 일정 목록
+
+const todayKey = selected;
+
+// 달력을 그립니다
+function render() {
+  document.getElementById("title").textContent = year + "년 " + (month + 1) + "월";
+
+  const firstDay = new Date(year, month, 1).getDay();       // 1일이 무슨 요일인지 (0=일요일)
+  const lastDate = new Date(year, month + 1, 0).getDate();  // 이 달의 마지막 날짜
+
+  const days = document.getElementById("days");
+  days.innerHTML = "";
+
+  // 1일 앞을 빈 칸으로 채워 요일을 맞춥니다
+  for (let i = 0; i < firstDay; i++) {
+    const cell = document.createElement("div");
+    cell.className = "day empty";
+    days.appendChild(cell);
+  }
+
+  // 1일부터 마지막 날까지 칸을 만듭니다
+  for (let d = 1; d <= lastDate; d++) {
+    const key = toKey(year, month, d);
+    const cell = document.createElement("div");
+    cell.className = "day";
+    if (key === todayKey) cell.classList.add("today");
+    if (key === selected) cell.classList.add("selected");
+
+    const num = document.createElement("span");
+    num.className = "num";
+    num.textContent = d;
+    cell.appendChild(num);
+
+    // 그날의 일정을 골라 2개까지만 칸에 보여 줍니다
+    const items = schedules.filter((item) => item.date === key);
+    items.slice(0, 2).forEach((item) => {
+      const tag = document.createElement("span");
+      tag.className = "tag";
+      tag.textContent = item.content;
+      cell.appendChild(tag);
+    });
+    if (items.length > 2) {
+      const more = document.createElement("span");
+      more.className = "more";
+      more.textContent = "+" + (items.length - 2) + "개";
+      cell.appendChild(more);
+    }
+
+    // 칸을 클릭하면 그 날짜를 선택합니다
+    cell.addEventListener("click", () => selectDate(key));
+    days.appendChild(cell);
+  }
+
+  renderDetail();
+}
+
+// 달력 아래에 선택한 날짜의 일정을 모두 보여 줍니다
+function renderDetail() {
+  const [y, m, d] = selected.split("-").map(Number);
+  const week = "일월화수목금토"[new Date(y, m - 1, d).getDay()];
+  document.getElementById("detail-title").textContent = m + "월 " + d + "일 (" + week + ")";
+
+  const list = document.getElementById("list");
+  list.innerHTML = "";
+
+  const items = schedules.filter((item) => item.date === selected);
+  if (items.length === 0) {
+    const li = document.createElement("li");
+    li.className = "empty-msg";
+    li.textContent = "일정이 없습니다";
+    list.appendChild(li);
+    return;
+  }
+  items.forEach((item) => {
+    const li = document.createElement("li");
+    li.textContent = item.content;
+    list.appendChild(li);
+  });
+}
+
+// 날짜를 선택하면 입력 폼의 날짜 칸도 같이 채워 둡니다
+function selectDate(key) {
+  selected = key;
+  document.getElementById("date").value = key;
+  render();
+}
+
+// 시트에서 일정 목록을 불러와 달력을 다시 그립니다
+async function load() {
+  try {
+    const res = await fetch(URL);
+    schedules = await res.json();
+    document.getElementById("error").textContent = "";
+  } catch (e) {
+    document.getElementById("error").textContent = "일정을 불러오지 못했습니다. 새로고침 해 주세요.";
+  }
+  render();
+}
+
+// ‹ › 버튼으로 이전 달과 다음 달로 이동합니다
+document.getElementById("prev").addEventListener("click", () => {
+  month = month - 1;
+  if (month < 0) {
+    month = 11;
+    year = year - 1;
+  }
+  render();
+});
+document.getElementById("next").addEventListener("click", () => {
+  month = month + 1;
+  if (month > 11) {
+    month = 0;
+    year = year + 1;
+  }
+  render();
+});
+
+// 추가 버튼을 누르면 시트에 한 줄 보내고, 그 날짜로 이동해 다시 불러옵니다
+document.getElementById("form").addEventListener("submit", async (e) => {
+  e.preventDefault();
+  const date = document.getElementById("date").value;
+  const content = document.getElementById("content").value;
+  await fetch(URL, {
+    method: "POST",
+    body: JSON.stringify({ date, content }),
+  });
+  document.getElementById("content").value = ""; // 날짜는 남겨 두어 연달아 추가할 수 있게 합니다
+
+  const [y, m] = date.split("-").map(Number);
+  year = y;
+  month = m - 1;
+  selected = date;
+  load();
+});
+
+// 페이지를 열면 오늘 날짜를 선택한 상태로 시작합니다
+selectDate(selected);
+load();
+</script>
+</body>
+</html>
